@@ -9,11 +9,15 @@ public class PlayerController : MonoBehaviour
     /// 
 
     [SerializeField] Rigidbody pedals; // our front and back wheels
-    [SerializeField] Rigidbody backWheel;
+    [SerializeField] HingeJoint backWheel;
     [SerializeField] float pedalTorqueMultiplier, backWheelTorqueMultiplier;
     [SerializeField] InputAction pedalAction; // our input from our triggers pedals
 
     [SerializeField] InputAction turnAction; // our input from our left stick for our handlebars
+    [SerializeField] Gamepad gamepad;
+    [SerializeField] float turnScale, turnSpeed, lastTurnRotation, targetRotation; // what is our turn scale?
+    [SerializeField] Rigidbody handlebars; // our handlebars
+    [SerializeField] Transform fakeHandlerbars; // our fake handlebars
 
     public float forceToApply, readFloat; // the rotational force we want to apply
     [SerializeField] float lastRight, lastLeft;
@@ -27,6 +31,7 @@ public class PlayerController : MonoBehaviour
 
     private void OnEnable()
     {
+        gamepad = Gamepad.current;
         pedalAction.Enable();
     }
 
@@ -39,14 +44,16 @@ public class PlayerController : MonoBehaviour
     private void FixedUpdate()
     {
         // first get our input
-        ReceiveInput();
+        ReceivePedalInput();
         // update feet
         UpdateFeet();
         // process force
         ProcessForce();
+        // process handlebar input
+        ProcessHandlebarInput();
     }
 
-    void ReceiveInput()
+    void ReceivePedalInput()
     {
         // we only want to get the difference of input from each leg since the last input, until it passes our bottom out threshhold
         // this is how a bike works: force is applied based on how much we push with each foot, until pushing with that foot does nothing else,
@@ -119,7 +126,7 @@ public class PlayerController : MonoBehaviour
     void ApplyForce(float force)
     {
         // burst turn our pedals
-        pedals.AddTorque(new Vector3(force * pedalTorqueMultiplier, 0, 0), ForceMode.Impulse);
+        pedals.AddRelativeTorque(new Vector3(force * pedalTorqueMultiplier, 0, 0), ForceMode.Impulse);
     
         // add to our force to apply
         forceToApply += force * backWheelTorqueMultiplier * Time.fixedDeltaTime;
@@ -128,8 +135,11 @@ public class PlayerController : MonoBehaviour
     void ProcessForce()
     {
         // apply that rotation to the back wheel
-        backWheel.AddTorque(new Vector3(forceToApply * backWheelTorqueMultiplier * Time.fixedDeltaTime, 0, 0), ForceMode.Force);
-
+        // backWheel.AddRelativeTorque(new Vector3(forceToApply * backWheelTorqueMultiplier * Time.fixedDeltaTime, 0, 0), ForceMode.Force);
+        var motor = backWheel.motor;
+        motor.targetVelocity = forceToApply;
+        motor.force = forceToApply * backWheelTorqueMultiplier;
+        backWheel.motor = motor;
         // overtime, reduce the force
         if (forceToApply > 0)
             forceToApply -= Time.fixedDeltaTime * (backWheelTorqueMultiplier / 50);
@@ -144,5 +154,19 @@ public class PlayerController : MonoBehaviour
         rightFootPop.position = rightFootTarget.position;
         leftFootPop.position = leftFootTarget.position;
 
+    }
+
+    void ProcessHandlebarInput()
+    {
+        // calculate where we want the handlebars to be
+        targetRotation = gamepad.leftStick.ReadValue().x * turnScale;
+
+        // lerp our rotation to that
+        lastTurnRotation = Mathf.Lerp(lastTurnRotation, targetRotation, turnSpeed * Time.fixedDeltaTime);
+
+        fakeHandlerbars.localEulerAngles = new Vector3(0, Mathf.Clamp(fakeHandlerbars.localEulerAngles.y + lastTurnRotation, -turnScale, turnScale), 0);
+
+        // lerp the rotation of the handlebars
+        handlebars.rotation = fakeHandlerbars.rotation;
     }
 }
