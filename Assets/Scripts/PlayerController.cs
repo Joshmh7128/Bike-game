@@ -11,14 +11,19 @@ public class PlayerController : MonoBehaviour
     [SerializeField] Rigidbody pedals; // our front and back wheels
     [SerializeField] Rigidbody backWheel;
     [SerializeField] float pedalTorqueMultiplier, backWheelTorqueMultiplier;
-    [SerializeField] InputAction pedalAction; // our input from our pedals
+    [SerializeField] InputAction pedalAction; // our input from our triggers pedals
+
+    [SerializeField] InputAction turnAction; // our input from our left stick for our handlebars
 
     public float forceToApply, readFloat; // the rotational force we want to apply
     [SerializeField] float lastRight, lastLeft;
     [SerializeField] bool onRight; // are we on our right or left foot?
 
+    [SerializeField] Transform pedalT, pedalContainer;
+
     // for our IK purposes
     [SerializeField] Transform rightFootTarget, leftFootTarget, rightFootPop, leftFootPop;
+    [SerializeField] Rigidbody rightFootTargetRB, leftFootTargetRB;
 
     private void OnEnable()
     {
@@ -37,7 +42,8 @@ public class PlayerController : MonoBehaviour
         ReceiveInput();
         // update feet
         UpdateFeet();
-
+        // process force
+        ProcessForce();
     }
 
     void ReceiveInput()
@@ -48,7 +54,9 @@ public class PlayerController : MonoBehaviour
         /// forces are read like this!
         readFloat = pedalAction.ReadValue<float>();
 
+        // based on our input, apply force downwards to either the right or left pedals
         // get our right input up to 1, as long as it is more than our last rightInput
+
         if (onRight)
         {
             // if our lastRight is less than 0.9
@@ -61,12 +69,14 @@ public class PlayerController : MonoBehaviour
                     // then update the last movement amount
                     lastRight = pedalAction.ReadValue<float>();
                 }
-            } else if (lastRight >= 1)
+            } 
+            else if (lastRight >= 1)
             {
                 // if our lastRight is more than 0.9, we have bottomed out! We are no longer on our right foot
                 lastLeft = 0;
                 onRight = false;
             }
+            
         }
 
         // get our left input down to -1, as long as it is less than our last leftInput
@@ -89,36 +99,50 @@ public class PlayerController : MonoBehaviour
                 lastRight = 0;
                 onRight = true;
             }
+            
         }
 
+        /*
         // check our feet to update which foot we're on
-        if (rightFootPop.localPosition.y > 0.5)
+        if (rightFootPop.localPosition.y > 0.5 && lastRight == 1)
         {
-            lastRight = 0;
             onRight = true;
-        }
+        } 
 
-        if (leftFootPop.localPosition.y > 0.5)
+        if (leftFootPop.localPosition.y > 0.5 && lastLeft == -1)
         {
-            lastLeft = 0;
             onRight = false;
-        }
-
+        }*/
     }
 
     // we apply our force to the pedals and to the back wheel at the same time
     void ApplyForce(float force)
     {
-        // turn our pedals
+        // burst turn our pedals
         pedals.AddTorque(new Vector3(force * pedalTorqueMultiplier, 0, 0), ForceMode.Impulse);
+    
+        // add to our force to apply
+        forceToApply += force * backWheelTorqueMultiplier * Time.fixedDeltaTime;
+    }
 
+    void ProcessForce()
+    {
         // apply that rotation to the back wheel
-        backWheel.AddTorque(new Vector3(force * backWheelTorqueMultiplier, 0, 0), ForceMode.Acceleration);
+        backWheel.AddTorque(new Vector3(forceToApply * backWheelTorqueMultiplier * Time.fixedDeltaTime, 0, 0), ForceMode.Force);
+
+        // overtime, reduce the force
+        if (forceToApply > 0)
+            forceToApply -= Time.fixedDeltaTime * (backWheelTorqueMultiplier / 50);
+
+        if (forceToApply < 0)
+            forceToApply = 0;
     }
 
     private void UpdateFeet()
     {
+        // update feet
         rightFootPop.position = rightFootTarget.position;
         leftFootPop.position = leftFootTarget.position;
+
     }
 }
