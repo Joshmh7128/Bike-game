@@ -8,22 +8,20 @@ public class PlayerController : MonoBehaviour
     /// script controlls the player on their bike
     /// 
 
-    [SerializeField] Rigidbody pedals; // our front and back wheels
-    [SerializeField] HingeJoint backWheel;
+    [SerializeField] WheelCollider backWheel, frontWheel;
     [SerializeField] float pedalTorqueMultiplier, backWheelTorqueMultiplier;
     [SerializeField] InputAction pedalAction; // our input from our triggers pedals
 
-    [SerializeField] InputAction turnAction; // our input from our left stick for our handlebars
     [SerializeField] Gamepad gamepad;
     [SerializeField] float turnScale, turnSpeed, lastTurnRotation, targetRotation; // what is our turn scale?
     [SerializeField] Rigidbody handlebars; // our handlebars
-    [SerializeField] Transform fakeHandlerbars; // our fake handlebars
+    [SerializeField] Transform fakeHandlerbars, body, pedalContaniner; // our fake handlebars
 
     public float forceToApply, readFloat; // the rotational force we want to apply
     [SerializeField] float lastRight, lastLeft;
     [SerializeField] bool onRight; // are we on our right or left foot?
 
-    [SerializeField] Transform pedalT, pedalContainer;
+    [SerializeField] Transform pedalT;
 
     // for our IK purposes
     [SerializeField] Transform rightFootTarget, leftFootTarget, rightFootPop, leftFootPop;
@@ -108,26 +106,11 @@ public class PlayerController : MonoBehaviour
             }
             
         }
-
-        /*
-        // check our feet to update which foot we're on
-        if (rightFootPop.localPosition.y > 0.5 && lastRight == 1)
-        {
-            onRight = true;
-        } 
-
-        if (leftFootPop.localPosition.y > 0.5 && lastLeft == -1)
-        {
-            onRight = false;
-        }*/
     }
 
     // we apply our force to the pedals and to the back wheel at the same time
     void ApplyForce(float force)
     {
-        // burst turn our pedals
-        pedals.AddRelativeTorque(new Vector3(force * pedalTorqueMultiplier, 0, 0), ForceMode.Impulse);
-    
         // add to our force to apply
         forceToApply += force * backWheelTorqueMultiplier * Time.fixedDeltaTime;
     }
@@ -136,11 +119,10 @@ public class PlayerController : MonoBehaviour
     {
         // apply that rotation to the back wheel
         // backWheel.AddRelativeTorque(new Vector3(forceToApply * backWheelTorqueMultiplier * Time.fixedDeltaTime, 0, 0), ForceMode.Force);
+        pedalT.transform.localEulerAngles = new Vector3(pedalT.transform.localEulerAngles.x + forceToApply, 0, 0);
 
-        var motor = backWheel.motor;
-        motor.targetVelocity = forceToApply;
-        motor.force = forceToApply * backWheelTorqueMultiplier;
-        backWheel.motor = motor;
+        backWheel.motorTorque = forceToApply * backWheelTorqueMultiplier;
+
         // overtime, reduce the force
         if (forceToApply > 0)
             forceToApply -= Time.fixedDeltaTime * (backWheelTorqueMultiplier / 50);
@@ -171,5 +153,7 @@ public class PlayerController : MonoBehaviour
 
         // lerp the rotation of the handlebars
         handlebars.rotation = fakeHandlerbars.rotation;
+
+        frontWheel.steerAngle = lastTurnRotation;
     }
 }
