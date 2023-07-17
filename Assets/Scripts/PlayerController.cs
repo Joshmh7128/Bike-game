@@ -136,6 +136,7 @@ public class PlayerController : MonoBehaviour
     {
         // apply that rotation to the back wheel
         // backWheel.AddRelativeTorque(new Vector3(forceToApply * backWheelTorqueMultiplier * Time.fixedDeltaTime, 0, 0), ForceMode.Force);
+
         var motor = backWheel.motor;
         motor.targetVelocity = forceToApply;
         motor.force = forceToApply * backWheelTorqueMultiplier;
@@ -162,9 +163,11 @@ public class PlayerController : MonoBehaviour
         targetRotation = gamepad.leftStick.ReadValue().x * turnScale;
 
         // lerp our rotation to that
-        lastTurnRotation = Mathf.Lerp(lastTurnRotation, targetRotation, turnSpeed * Time.fixedDeltaTime);
+        float clamped = Mathf.Clamp(targetRotation, -turnScale, turnScale);
 
-        fakeHandlerbars.localEulerAngles = new Vector3(0, Mathf.Clamp(fakeHandlerbars.localEulerAngles.y + lastTurnRotation, -turnScale, turnScale), 0);
+        lastTurnRotation = Mathf.Lerp(fakeHandlerbars.localEulerAngles.y, clamped, turnSpeed * Time.fixedDeltaTime);
+
+        fakeHandlerbars.localEulerAngles = new Vector3(0, lastTurnRotation, 0);
 
         // lerp the rotation of the handlebars
         handlebars.rotation = fakeHandlerbars.rotation;

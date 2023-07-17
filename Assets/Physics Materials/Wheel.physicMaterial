@@ -8,7 +8,7 @@ PhysicMaterial:
   m_PrefabAsset: {fileID: 0}
   m_Name: Wheel
   dynamicFriction: 10
-  staticFriction: 10
+  staticFriction: 1
   bounciness: 0.2
   frictionCombine: 0
   bounceCombine: 0
